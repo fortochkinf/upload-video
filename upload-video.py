@@ -1,11 +1,12 @@
-#!/usr/bin/python
+#!/home/aparfenov/projects/upload-video/venv/bin/python
 
-import httplib
+import http.client
 import httplib2
 import os
 import random
 import sys
 import time
+import json
 
 from apiclient.discovery import build
 from apiclient.errors import HttpError
@@ -23,10 +24,10 @@ httplib2.RETRIES = 1
 MAX_RETRIES = 10
 
 # Always retry when these exceptions are raised.
-RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, IOError, httplib.NotConnected,
-  httplib.IncompleteRead, httplib.ImproperConnectionState,
-  httplib.CannotSendRequest, httplib.CannotSendHeader,
-  httplib.ResponseNotReady, httplib.BadStatusLine)
+RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, IOError, http.client.NotConnected,
+                        http.client.IncompleteRead, http.client.ImproperConnectionState,
+                        http.client.CannotSendRequest, http.client.CannotSendHeader,
+                        http.client.ResponseNotReady, http.client.BadStatusLine)
 
 # Always retry when an apiclient.errors.HttpError with one of these status
 # codes is raised.
@@ -43,6 +44,7 @@ RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
 # For more information about the client_secrets.json file format, see:
 #   https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
 CLIENT_SECRETS_FILE = "client_secrets.json"
+CONFIGURATION_FILE = "settings.json"
 
 # This OAuth 2.0 access scope allows an application to upload files to the
 # authenticated user's YouTube channel, but doesn't allow other types of access.
@@ -71,19 +73,8 @@ https://developers.google.com/api-client-library/python/guide/aaa_client_secrets
 VALID_PRIVACY_STATUSES = ("public", "private", "unlisted")
 
 
-def get_authenticated_service(args):
-  flow = flow_from_clientsecrets(CLIENT_SECRETS_FILE,
-    scope=YOUTUBE_UPLOAD_SCOPE,
-    message=MISSING_CLIENT_SECRETS_MESSAGE)
-
-  storage = Storage("%s-oauth2.json" % sys.argv[0])
-  credentials = storage.get()
-
-  if credentials is None or credentials.invalid:
-    credentials = run_flow(flow, storage, args)
-
-  return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-    http=credentials.authorize(httplib2.Http()))
+def get_authenticated_service(key):
+  return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey='key')
 
 def initialize_upload(youtube, options):
   tags = None
@@ -130,52 +121,58 @@ def resumable_upload(insert_request):
   retry = 0
   while response is None:
     try:
-      print "Uploading file..."
+      print("Uploading file...")
       status, response = insert_request.next_chunk()
       if response is not None:
         if 'id' in response:
-          print "Video id '%s' was successfully uploaded." % response['id']
+          print("Video id '%s' was successfully uploaded." % response['id'])
         else:
           exit("The upload failed with an unexpected response: %s" % response)
-    except HttpError, e:
+    except HttpError:
       if e.resp.status in RETRIABLE_STATUS_CODES:
         error = "A retriable HTTP error %d occurred:\n%s" % (e.resp.status,
                                                              e.content)
       else:
         raise
-    except RETRIABLE_EXCEPTIONS, e:
+    except RETRIABLE_EXCEPTIONS:
       error = "A retriable error occurred: %s" % e
 
     if error is not None:
-      print error
+      print(error)
       retry += 1
       if retry > MAX_RETRIES:
         exit("No longer attempting to retry.")
 
       max_sleep = 2 ** retry
       sleep_seconds = random.random() * max_sleep
-      print "Sleeping %f seconds and then retrying..." % sleep_seconds
+      print("Sleeping %f seconds and then retrying..." % sleep_seconds)
       time.sleep(sleep_seconds)
 
+
+def read_config():
+  with open(CONFIGURATION_FILE) as json_file:
+    return json.load(json_file)
+
 if __name__ == '__main__':
-  argparser.add_argument("--file", required=True, help="Video file to upload")
-  argparser.add_argument("--title", help="Video title", default="Test Title")
-  argparser.add_argument("--description", help="Video description",
-    default="Test Description")
-  argparser.add_argument("--category", default="22",
-    help="Numeric video category. " +
-      "See https://developers.google.com/youtube/v3/docs/videoCategories/list")
-  argparser.add_argument("--keywords", help="Video keywords, comma separated",
-    default="")
-  argparser.add_argument("--privacyStatus", choices=VALID_PRIVACY_STATUSES,
-    default=VALID_PRIVACY_STATUSES[0], help="Video privacy status.")
-  args = argparser.parse_args()
+  # argparser.add_argument("--file", required=True, help="Video file to upload")
+  # argparser.add_argument("--title", help="Video title", default="Test Title")
+  # argparser.add_argument("--description", help="Video description",
+  #   default="Test Description")
+  # argparser.add_argument("--category", default="22",
+  #   help="Numeric video category. " +
+  #     "See https://developers.google.com/youtube/v3/docs/videoCategories/list")
+  # argparser.add_argument("--keywords", help="Video keywords, comma separated",
+  #   default="")
+  # argparser.add_argument("--privacyStatus", choices=VALID_PRIVACY_STATUSES,
+  #   default=VALID_PRIVACY_STATUSES[0], help="Video privacy status.")
+  # args = argparser.parse_args()
+  #
+  # if not os.path.exists(args.file):
+  #   exit("Please specify a valid file using the --file= parameter.")
 
-  if not os.path.exists(args.file):
-    exit("Please specify a valid file using the --file= parameter.")
-
-  youtube = get_authenticated_service(args)
+  config = read_config()
+  youtube = get_authenticated_service(config.get("api_key"))
   try:
-    initialize_upload(youtube, args)
-  except HttpError, e:
-    print "An HTTP error %d occurred:\n%s" % (e.resp.status, e.content)
+    initialize_upload(youtube, config)
+  except HttpError:
+    print("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
