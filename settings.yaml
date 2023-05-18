@@ -1,6 +1,6 @@
 channels:
   - id: UCB5NVLmSY1y34d4oveDs7ig
-    api_key: AIzaSyB8RL_i73_Lc9dMaZ6hIfc2J4lOMS5g1VM
+    oauth_secret_file: "client_secret.json"
     name: Смотри на русском
     type: 'poems'
     publish_directory: "./channels/UCB5NVLmSY1y34d4oveDs7ig/videos"
@@ -13,7 +13,7 @@ channels:
         days_after: 5
         at_time: '16:00'
   - id: UCg4nKDkbjejiPUJykG1YEhw
-    api_key: AIzaSyCKOCttzDAARL96XqihjpzBPAOssPjSkOE
+    oauth_secret_file: "client_secret_721432561847-ojaslv8lf2ch1lidlek4qshlu105as92.apps.googleusercontent.com.json"
     name: Машинный перевод
     type: 'science'
     publish_directory: "./channels/UCg4nKDkbjejiPUJykG1YEhw/videos"

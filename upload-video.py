@@ -1,4 +1,4 @@
-#!/home/aparfenov/projects/upload-video/venv/bin/python
+#!/home/parf/upload-video/venv/bin/python
 
 import http.client
 import httplib2
@@ -40,9 +40,6 @@ RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
 
 CONFIGURATION_FILE = "settings.yaml"
 
-CLIENT_SECRETS_FILE = 'client_secret.json'
-TOKEN_CACHE_FILE = 'token.json'
-
 # This OAuth 2.0 access scope allows an application to upload files to the
 # authenticated user's YouTube channel, but doesn't allow other types of access.
 UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
@@ -59,19 +56,23 @@ PLACEHOLDER="<PHRASE_FROM_FILE>"
 VIDEO_NAME_PLACEHOLDER="<VIDEO_NAME>"
 
 # Authorize the request and store authorization credentials.
-def get_authenticated_service():
+def get_authenticated_service_oauth(oauth_file):
   creds = None
-  if os.path.exists(TOKEN_CACHE_FILE):
-    creds = Credentials.from_authorized_user_file(TOKEN_CACHE_FILE, SCOPES)
+  token_cache_file_name = oauth_file + ".cache"
+  if os.path.exists(token_cache_file_name):
+    creds = Credentials.from_authorized_user_file(token_cache_file_name, SCOPES)
   if not creds or not creds.valid:
     if creds and creds.expired and creds.refresh_token:
       creds.refresh(Request())
     else:
-      flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
+      flow = InstalledAppFlow.from_client_secrets_file(oauth_file, SCOPES)
       creds = flow.run_local_server(port=0)
-  with open(TOKEN_CACHE_FILE, 'w') as token:
+  with open(token_cache_file_name, 'w') as token:
     token.write(creds.to_json())
   return build(API_SERVICE_NAME, API_VERSION, credentials = creds)
+
+def get_authenticated_service_api_key(key):
+  return build(API_SERVICE_NAME, API_VERSION, developerKey=key)
 
 def initialize_upload(youtube, options):
   body=dict(
@@ -191,7 +192,7 @@ def get_thumnail_file(dir, video_file):
 
 if __name__ == '__main__':
   config = read_config()
-  youtube = get_authenticated_service()
+
 
   video_upload_props = {}
 
@@ -213,7 +214,7 @@ if __name__ == '__main__':
             placeholders_filename = get_placeholders_filename(video_dir, video_file)
 
             video_upload_props["name"] = replace_placeholders(placeholders_filename, video_name)
-            video_upload_props["description"] = replace_placeholders(placeholders_filename, video_description, os.path.splitext(video_file)[0])
+            video_upload_props["description"] = replace_placeholders(placeholders_filename, video_description, video_upload_props["name"])
             video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
             video_upload_props["file"] = os.path.join(video_dir,video_file)
 
@@ -223,7 +224,7 @@ if __name__ == '__main__':
             )
 
             video_upload_props["publish_time"] = publish_time
-
+            youtube = get_authenticated_service_oauth(channel.get("api_key"))
             try:
               video_id = initialize_upload(youtube, video_upload_props)
               upload_thumbnail(youtube, video_id, get_thumnail_file(video_dir, video_file))
