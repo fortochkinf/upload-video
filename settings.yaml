@@ -1,0 +1,50 @@
+channels:
+  - id: UCB5NVLmSY1y34d4oveDs7ig
+    api_key: AIzaSyB8RL_i73_Lc9dMaZ6hIfc2J4lOMS5g1VM
+    name: Смотри на русском
+    type: 'poems'
+    publish_directory: "./channels/UCB5NVLmSY1y34d4oveDs7ig/videos"
+    archive_directory: "./channels/UCB5NVLmSY1y34d4oveDs7ig/archive"
+    publication_options:
+      #private, unlisted, public
+      privacy: 'private'
+      #can be set only if privacy = private (https://stackoverflow.com/questions/20025814/can-i-schedule-youtube-videos-for-release-via-the-api-and-other-limited-featu)
+      schedule:
+        days_after: 5
+        at_time: '16:00'
+  - id: UCg4nKDkbjejiPUJykG1YEhw
+    api_key: AIzaSyCKOCttzDAARL96XqihjpzBPAOssPjSkOE
+    name: Машинный перевод
+    type: 'science'
+    publish_directory: "./channels/UCg4nKDkbjejiPUJykG1YEhw/videos"
+    archive_directory: "./channels/UCg4nKDkbjejiPUJykG1YEhw/archive"
+    publication_options:
+      #private, unlisted, public
+      privacy: 'private'
+      #can be set only if privacy = private (https://stackoverflow.com/questions/20025814/can-i-schedule-youtube-videos-for-release-via-the-api-and-other-limited-featu)
+      schedule:
+        days_after: 2
+        at_time: '16:00'
+
+channel_types:
+  - id: "poems"
+    name: "poems"
+    video_name_variants:
+      - "Однажды в студеную зимнюю пору <PHRASE_FROM_FILE> из <PHRASE_FROM_FILE> был сильный <PHRASE_FROM_FILE>"
+      - "<PHRASE_FROM_FILE> <PHRASE_FROM_FILE> <PHRASE_FROM_FILE> кроет"
+      - "Я достаю <PHRASE_FROM_FILE> из <PHRASE_FROM_FILE>"
+    video_description_variants:
+      - "Красивое стихотворение <VIDEO_NAME> напоминает <PHRASE_FROM_FILE>. #hashtag #<PHRASE_FROM_FILE>"
+      - "Шарль Бодлер. О <VIDEO_NAME>. #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
+      - "Маяковский, знаменитый стих: <VIDEO_NAME> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
+
+  - id: "science"
+    name: "science"
+    video_name_variants:
+      - "Удивительные эксперименты над <PHRASE_FROM_FILE>. <PHRASE_FROM_FILE> делает <PHRASE_FROM_FILE>"
+      - "Правило <PHRASE_FROM_FILE>: Крути <PHRASE_FROM_FILE> пока не <PHRASE_FROM_FILE>"
+      - "19 Чудо света. <PHRASE_FROM_FILE> сделанный самим <PHRASE_FROM_FILE>"
+    video_description_variants:
+      - "<VIDEO_NAME>. Раздел 2. Зацепление <PHRASE_FROM_FILE>. #hashtag #<PHRASE_FROM_FILE>"
+      - "Теория <VIDEO_NAME>. Шарнирный <PHRASE_FROM_FILE> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
+      - "Молекулярный <VIDEO_NAME>. Субатомный эксперимент с <PHRASE_FROM_FILE> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
