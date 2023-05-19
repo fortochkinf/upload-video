@@ -209,15 +209,13 @@ if __name__ == '__main__':
             else:
               video_upload_props["name"] = video_name
               video_upload_props["description"] = video_description
-              print("WARN! Placeholders file: " + placeholders_filename + " is not exists. Using file name as video name.")
+              print("WARN! Placeholders file: " + placeholders_filename + " not exists. Using file name as video name.")
             video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
             video_upload_props["file"] = os.path.join(video_dir,video_file)
-            if channel.get("publication_options").get("schedule") is not None:
-              publish_time = calculate_publish_time(
-                channel.get("publication_options").get("schedule").get("days_after"),
-                channel.get("publication_options").get("schedule").get("at_time")[video_num]
-              )
-
+            publication_options = channel.get("publication_options")
+            if publication_options.get("schedule") is not None:
+              schedule = publication_options.get("schedule")
+              publish_time = calculate_publish_time(schedule.get("days_after"),schedule.get("at_time")[video_num])
               video_upload_props["publish_time"] = publish_time
             else:
                 print("INFO: publication schedule is not set")
@@ -229,7 +227,7 @@ if __name__ == '__main__':
                 print("Setting thumbnail " + thumbnail_file + " for video id: " + video_id)
                 upload_thumbnail(youtube, video_id, thumbnail_file)
               else:
-                print("WARN! Thumbnail file is not exists: " + thumbnail_file)
+                print("WARN! Thumbnail file not exists: " + thumbnail_file)
               os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
               os.rename(os.path.join(video_dir, video_file), os.path.join(archive_dir, video_file))
               os.rename(placeholders_filename, os.path.join(archive_dir, os.path.basename(placeholders_filename)))
