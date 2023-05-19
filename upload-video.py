@@ -221,12 +221,11 @@ if __name__ == '__main__':
                 print("INFO: publication schedule is not set")
             video_num = video_num + 1
             try:
-              #video_id = initialize_upload(youtube, video_upload_props)
-              video_id = "weq"
+              video_id = initialize_upload(youtube, video_upload_props)
               thumbnail_file = get_thumnail_file(video_dir, video_file)
               if os.path.exists(thumbnail_file):
                 print("Setting thumbnail " + thumbnail_file + " for video id: " + video_id)
-                #upload_thumbnail(youtube, video_id, thumbnail_file)
+                upload_thumbnail(youtube, video_id, thumbnail_file)
               else:
                 print("WARN! Thumbnail file not exists: " + thumbnail_file)
               os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
