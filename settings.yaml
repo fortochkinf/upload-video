@@ -11,7 +11,9 @@ channels:
       #can be set only if privacy = private (https://stackoverflow.com/questions/20025814/can-i-schedule-youtube-videos-for-release-via-the-api-and-other-limited-featu)
       schedule:
         days_after: 5
-        at_time: '16:00'
+        at_time:
+          - '16:00'
+          - '18:00'
   - id: UCg4nKDkbjejiPUJykG1YEhw
     oauth_secret_file: "client_secret_721432561847-ojaslv8lf2ch1lidlek4qshlu105as92.apps.googleusercontent.com.json"
     name: Машинный перевод
@@ -24,7 +26,9 @@ channels:
       #can be set only if privacy = private (https://stackoverflow.com/questions/20025814/can-i-schedule-youtube-videos-for-release-via-the-api-and-other-limited-featu)
       schedule:
         days_after: 2
-        at_time: '16:00'
+        at_time:
+          - '16:00'
+          - '18:00'
 
 channel_types:
   - id: "poems"

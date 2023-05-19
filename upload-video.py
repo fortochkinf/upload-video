@@ -1,10 +1,9 @@
-#!/home/parf/upload-video/venv/bin/python
+#!/home/aparfenov/projects/upload-video/venv/bin/python
 
 import http.client
 import httplib2
 import os
 import random
-import sys
 import time
 import yaml
 
@@ -12,11 +11,9 @@ import yaml
 import datetime
 
 import google.oauth2.credentials
-import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from pathlib import Path
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -63,7 +60,7 @@ def get_authenticated_service_oauth(oauth_file):
     creds = Credentials.from_authorized_user_file(token_cache_file_name, SCOPES)
   if not creds or not creds.valid:
     if creds and creds.expired and creds.refresh_token:
-      creds.refresh(Request())
+      creds.refresh(google.auth.transport.requests.Request())
     else:
       flow = InstalledAppFlow.from_client_secrets_file(oauth_file, SCOPES)
       creds = flow.run_local_server(port=0)
@@ -83,25 +80,16 @@ def initialize_upload(youtube, options):
     status=dict(
       privacyStatus=options.get("privacy"),
       selfDeclaredMadeForKids=False,
-      publishAt=options.get("publish_time")
     )
   )
-  print(body)
+  if options.get("publish_time") is not None:
+      body.get("status")["publishAt"] = options.get("publish_time")
+
+  print("Youtube video upload request:\n" + str(body))
   # Call the API's videos.insert method to create and upload the video.
   insert_request = youtube.videos().insert(
       part=",".join(body.keys()),
       body=body,
-      # The chunksize parameter specifies the size of each chunk of data, in
-      # bytes, that will be uploaded at a time. Set a higher value for
-      # reliable connections as fewer chunks lead to faster uploads. Set a lower
-      # value for better recovery on less reliable connections.
-      #
-      # Setting "chunksize" equal to -1 in the code below means that the entire
-      # file will be uploaded in a single HTTP request. (If the upload fails,
-      # it will still be retried where it left off.) This is usually a best
-      # practice, but if you're using Python older than 2.6 or if you're
-      # running on App Engine, you should set the chunksize to something like
-      # 1024 * 1024 (1 megabyte).
       media_body=MediaFileUpload(options.get("file"), chunksize=-1, resumable=True)
   )
 
@@ -157,7 +145,7 @@ def replace_placeholders(filename, str, video_name=None):
 
   output_string = output_string.replace(PLACEHOLDER, "")
 
-  if (video_name != None):
+  if video_name is not None:
       output_string = output_string.replace(VIDEO_NAME_PLACEHOLDER, video_name)
 
   return output_string
@@ -173,8 +161,7 @@ def calculate_publish_time(days_after, at_time):
     minute = int(at_time.split(":")[1])
     date = datetime.datetime.now()
     date = date + datetime.timedelta(days=days_after)
-    date.replace(hour=hour, minute=minute)
-
+    date = date.replace(hour=hour, minute=minute, second=0)
     #YYYY-MM-DDThh:mm:ss.sZ
     return date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -197,11 +184,14 @@ if __name__ == '__main__':
   video_upload_props = {}
 
   for channel in config.get("channels"):
+    print("Channel: " + channel.get("name"))
     video_dir = channel.get("publish_directory")
     archive_dir = channel.get("archive_directory")
+    youtube = get_authenticated_service_oauth(channel.get("oauth_secret_file"))
+    video_num = 0
     for video_file in sorted(os.listdir(video_dir)):
         if video_file.endswith(VIDEO_FILE_EXTENSION):
-            print(video_file)
+            print("Uploading video: "+ video_file)
 
             channel_type = {}
             for a in config.get("channel_types"):
@@ -213,20 +203,35 @@ if __name__ == '__main__':
 
             placeholders_filename = get_placeholders_filename(video_dir, video_file)
 
-            video_upload_props["name"] = replace_placeholders(placeholders_filename, video_name)
-            video_upload_props["description"] = replace_placeholders(placeholders_filename, video_description, video_upload_props["name"])
+            if os.path.exists(placeholders_filename):
+              video_upload_props["name"] = replace_placeholders(placeholders_filename, video_name)
+              video_upload_props["description"] = replace_placeholders(placeholders_filename, video_description, video_upload_props["name"])
+            else:
+              video_upload_props["name"] = video_name
+              video_upload_props["description"] = video_description
+              print("WARN! Placeholders file: " + placeholders_filename + " is not exists. Using file name as video name.")
             video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
             video_upload_props["file"] = os.path.join(video_dir,video_file)
-
-            publish_time = calculate_publish_time(
+            if channel.get("publication_options").get("schedule") is not None:
+              publish_time = calculate_publish_time(
                 channel.get("publication_options").get("schedule").get("days_after"),
-                channel.get("publication_options").get("schedule").get("at_time")
-            )
+                channel.get("publication_options").get("schedule").get("at_time")[video_num]
+              )
 
-            video_upload_props["publish_time"] = publish_time
-            youtube = get_authenticated_service_oauth(channel.get("api_key"))
+              video_upload_props["publish_time"] = publish_time
+            else:
+                print("INFO: publication schedule is not set")
+            video_num = video_num + 1
             try:
               video_id = initialize_upload(youtube, video_upload_props)
-              upload_thumbnail(youtube, video_id, get_thumnail_file(video_dir, video_file))
+              thumbnail_file = get_thumnail_file(video_dir, video_file)
+              if os.path.exists(thumbnail_file):
+                print("Setting thumbnail " + thumbnail_file + " for video id: " + video_id)
+                upload_thumbnail(youtube, video_id, thumbnail_file)
+              else:
+                print("WARN! Thumbnail file is not exists: " + thumbnail_file)
+              os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
+              os.rename(os.path.join(video_dir, video_file), os.path.join(archive_dir, video_file))
+              os.rename(placeholders_filename, os.path.join(archive_dir, os.path.basename(placeholders_filename)))
             except HttpError:
               print("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
