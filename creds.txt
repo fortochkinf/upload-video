@@ -13,3 +13,13 @@ channel:
 UCg4nKDkbjejiPUJykG1YEhw
 api_key:
 AIzaSyCKOCttzDAARL96XqihjpzBPAOssPjSkOE
+
+
+stepanpetrov182@gmail.com
+9265265810
+/home/parf/upload-video/client_secret_248310770804-2qq4jphm17rb95boul7nm275bdaacs23.apps.googleusercontent.com.json
+@stepanpetrov-bu7go
+
+gavrilastepanovich@gmail.com
+/home/parf/Загрузки/client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json
+
