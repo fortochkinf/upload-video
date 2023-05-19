@@ -23,3 +23,6 @@ stepanpetrov182@gmail.com
 gavrilastepanovich@gmail.com
 /home/parf/Загрузки/client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json
 
+
+petrivanko59@gmail.com
+/home/parf/Загрузки/client_secret_506573544719-ugesdhnq2v4520bm4m1f9psaqvlo7tgt.apps.googleusercontent.com.json
