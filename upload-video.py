@@ -187,7 +187,7 @@ if __name__ == '__main__':
     print("Channel: " + channel.get("name"))
     video_dir = channel.get("publish_directory")
     archive_dir = channel.get("archive_directory")
-    youtube = get_authenticated_service_oauth(channel.get("oauth_secret_file"))
+    youtube = get_authenticated_service_oauth(os.path.join("secrets",channel.get("oauth_secret_file")))
     video_num = 0
     for video_file in sorted(os.listdir(video_dir)):
         if video_file.endswith(VIDEO_FILE_EXTENSION):
