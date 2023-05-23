@@ -141,8 +141,12 @@ def replace_placeholders(filename, str, video_name=None):
   output_string = str
 
   for random_string in random_strings:
-    output_string = output_string.replace(PLACEHOLDER, random_string.strip(), 1)
-
+    replaced_string = output_string.replace("#" + PLACEHOLDER, random_string.strip().replace(" ", "_"), 1)
+    if replaced_string == output_string:
+      output_string = output_string.replace(PLACEHOLDER, random_string.strip(), 1)
+    else:
+      output_string = replaced_string
+  output_string = output_string.replace("#" + PLACEHOLDER, "")
   output_string = output_string.replace(PLACEHOLDER, "")
 
   if video_name is not None:
@@ -215,7 +219,11 @@ if __name__ == '__main__':
             publication_options = channel.get("publication_options")
             if publication_options.get("schedule") is not None:
               schedule = publication_options.get("schedule")
-              publish_time = calculate_publish_time(schedule.get("days_after"),schedule.get("at_time")[video_num])
+              try:
+                publish_time = calculate_publish_time(schedule.get("days_after"),schedule.get("at_time")[video_num])
+              except IndexError:
+                print("Schedule have only " + video_num + " records in total, but there are more videos for upload, so skipping upload next videos")
+                exit(1)
               video_upload_props["publish_time"] = publish_time
             else:
                 print("INFO: publication schedule is not set")
