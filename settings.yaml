@@ -3,8 +3,8 @@ channels:
     oauth_secret_file: "client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json"
     name: Смотри на русском
     type: 'poems'
-    publish_directory: "./channels/UCB5NVLmSY1y34d4oveDs7ig/videos"
-    archive_directory: "./channels/UCB5NVLmSY1y34d4oveDs7ig/archive"
+    publish_directory: "./channels/1/videos"
+    archive_directory: "./channels/1/archive"
     publication_options:
       #private, unlisted, public
       privacy: 'private'
@@ -18,8 +18,8 @@ channels:
     oauth_secret_file: "client_secret_248310770804-2qq4jphm17rb95boul7nm275bdaacs23.apps.googleusercontent.com.json"
     name: Машинный перевод
     type: 'science'
-    publish_directory: "./channels/UCg4nKDkbjejiPUJykG1YEhw/videos"
-    archive_directory: "./channels/UCg4nKDkbjejiPUJykG1YEhw/archive"
+    publish_directory: "./channels/2/videos"
+    archive_directory: "./channels/2/archive"
     publication_options:
       #private, unlisted, public
       privacy: 'private'
