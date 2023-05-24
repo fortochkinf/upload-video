@@ -1,4 +1,4 @@
-#!/home/aparfenov/projects/upload-video/venv/bin/python
+#!/usr/bin/python
 
 import http.client
 import httplib2
