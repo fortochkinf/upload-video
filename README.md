@@ -10,4 +10,13 @@
 потом обновление авторизации будет происходить по refresh токену
 
 
+Запуск на ubuntu:
+apt install python3.8 python3.8-venv
+
+python3.8 -m venv venv
+. ./venv/bin/activate
+pip install -r requirements.txt
+
+python upload-video.py
+
 
