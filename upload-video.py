@@ -1,4 +1,4 @@
-#!/home/parf/upload-video/venv/bin/python
+#!/usr/bin/python
 
 import http.client
 import httplib2
@@ -166,14 +166,12 @@ def replace_placeholders(filename, str, video_name=None):
   with open(filename, 'r') as file:
       lines = file.readlines()
 
-  placeholders_count = str.count(PLACEHOLDER)
-  if placeholders_count > len(lines):
-      placeholders_count = len(lines)
-  random_strings = random.sample(lines, placeholders_count)
+  replacement_count = min(str.count(PLACEHOLDER), len(lines))
+  random_strings = random.sample(lines, replacement_count)
   output_string = str
 
   for random_string in random_strings:
-    replaced_string = output_string.replace("#" + PLACEHOLDER, random_string.strip().replace(" ", "_"), 1)
+    replaced_string = output_string.replace("#" + PLACEHOLDER, "#" + random_string.strip().replace(" ", ""), 1)
     if replaced_string == output_string:
       output_string = output_string.replace(PLACEHOLDER, random_string.strip(), 1)
     else:
