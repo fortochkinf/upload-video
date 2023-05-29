@@ -19,7 +19,7 @@ channels:
       languages:
         - 'en'
         - 'de'
-      translator: "google"
+      translator: "deepl1"
   - id: UCg4nKDkbjejiPUJykG1YEhw
     oauth_secret_file: "client_secret_248310770804-2qq4jphm17rb95boul7nm275bdaacs23.apps.googleusercontent.com.json"
     name: Машинный перевод
@@ -40,7 +40,7 @@ channels:
       languages:
         - 'en'
         - 'de'
-      translator: "google"
+      translator: "deepl1"
 
 channel_types:
   - id: "poems"
@@ -70,7 +70,7 @@ translators:
     type: "google"
     properties:
       auth_file: "client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json"
-  - name: "deepl"
+  - name: "deepl1"
     type: "deepl"
     properties:
       auth_key: 1bb91e81-96f7-ae03-6cac-a18f40fdd598:fx

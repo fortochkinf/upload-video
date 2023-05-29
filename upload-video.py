@@ -6,7 +6,6 @@ import os
 import random
 import time
 import yaml
-import deepl
 import google.cloud
 import datetime
 
@@ -17,7 +16,12 @@ from googleapiclient.http import MediaFileUpload
 from google.oauth2.credentials import Credentials
 from pathlib import Path
 from google_auth_oauthlib.flow import InstalledAppFlow
-from google.cloud import translate_v2 as translate
+
+
+from translators.Translator import Translator
+from translators.DeeplTranslator import DeeplTranslator
+from translators.GoogleTranslator import GoogleTranslator
+
 
 # Explicitly tell the underlying HTTP transport library not to retry, since
 # we are handling retry logic ourselves.
@@ -79,26 +83,11 @@ def get_authenticated_service_oauth(oauth_file):
 def get_authenticated_service_api_key(key):
   return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=key)
 
-
-
-def translate_text_google(lang, text, oauth_file):
-    creds = get_credentials(oauth_file, GOOGLE_TRANSLATE_SCOPES)
-
-    translate_client = translate.Client(credentials = creds)
-    return translate_client.translate(text, target_language=lang)
-
-def translate_text_deepl(lang, text):
-    #curl 'https://dict.deepl.com/russian-english/search?ajax=1&source=russian&onlyDictEntries=1&translator=dnsof7h3k2lgh3gda&kind=full&eventkind=keyup&forleftside=true&il=ru' -X POST -H 'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/113.0' -H 'Accept: text/html' -H 'Accept-Language: ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3' -H 'Accept-Encoding: gzip, deflate, br' -H 'Content-Type: application/x-www-form-urlencoded' -H 'Origin: https://www.deepl.com' -H 'Connection: keep-alive' -H 'Referer: https://www.deepl.com/' -H 'Sec-Fetch-Dest: empty' -H 'Sec-Fetch-Mode: cors' -H 'Sec-Fetch-Site: same-site' -H 'TE: trailers' --data-raw 'query=%D1%80%D1%83%D0%B4%D0%B4%D0%B7'
-    translator = deepl.Translator(auth_key)
-    result = translator.translate_text(text, target_lang=lang)
-    return result.text
-
-
-def translate_video_description(title, description, langs, oauth_file):
+def translate_video_description(title, description, langs, transaltor):
     localization = {}
     for lang in langs:
-        localization[lang].description = translate_text_google(description, lang, oauth_file)
-        localization[lang].title = translate_text_google(title, lang, oauth_file)
+        localization[lang].description = transaltor.translate(description, lang)
+        localization[lang].title = transaltor.translate(title, lang)
     return localization
 
 def initialize_upload(youtube, options):
@@ -211,7 +200,20 @@ def get_thumnail_file(dir, video_file):
             return os.path.join(dir,file)
 
 
-def generate_upload_props(channel_type, video_dir, video_file, langs, translator, oauth_file):
+def generate_upload_props(channel, config, video_file):
+
+    channel_type = None
+    for channel_type_candidate in config.get("channel_types"):
+        if channel_type_candidate.get("id") == channel.get("type"):
+            channel_type = channel_type_candidate
+
+    if channel_type is None:
+        raise Exception("Cant find channel type: " + channel_type)
+
+    video_dir = channel.get("publish_directory")
+
+    translator = get_translator(channel, config.get("translators"))
+    language_list = channel.get("translation").get("languages")
     video_upload_props = {}
     video_name = random.choice(channel_type.get("video_name_variants"))
     video_description = random.choice(channel_type.get("video_description_variants"))
@@ -227,7 +229,7 @@ def generate_upload_props(channel_type, video_dir, video_file, langs, translator
         print("WARN! Placeholders file: " + placeholders_filename + " not exists. Using file name as video name.")
 
 
-    video_upload_props["localizations"] = translate_video_description(video_upload_props["name"], video_upload_props["description"], langs, oauth_file)
+    video_upload_props["localizations"] = translate_video_description(video_upload_props["name"], video_upload_props["description"], language_list, translator)
 
     video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
     video_upload_props["file"] = os.path.join(video_dir,video_file)
@@ -244,6 +246,28 @@ def generate_upload_props(channel_type, video_dir, video_file, langs, translator
         print("INFO: publication schedule is not set")
 
 
+
+def get_translator(channel, transaltors) -> Translator:
+    if channel.get("translation") is not None:
+        if channel.get("translation").get("enabled") is True:
+
+            translator_name = channel.get("translation").get("translator")
+            translator = None
+            for translator_candidate in transaltors:
+                if (translator_candidate.get("name") == translator_name):
+                    translator = translator_candidate
+            if (translator is None):
+                raise Exception("Translator not found by name: " + translator_name)
+
+            properties = translator.get("properties")
+            translator_type = translator.get("type")
+            if (translator_type == "google"):
+                return GoogleTranslator(properties)
+            elif (translator_type == "deepl"):
+                return DeeplTranslator(properties)
+            else:
+                raise Exception("Unknown translator type: " + translator_type)
+    return None
 
 if __name__ == '__main__':
   config = read_config()
@@ -262,17 +286,7 @@ if __name__ == '__main__':
         if video_file.endswith(VIDEO_FILE_EXTENSION):
             print("Uploading video: "+ video_file)
 
-            channel_type = {}
-            for a in config.get("channel_types"):
-                if a.get("id") == channel.get("type"):
-                    channel_type = a
-
-            if channel.get("translation") is not None:
-                if channel.get("translation").get("enabled") is True:
-                    language_list = channel.get("translation").get("languages")
-                    translator = channel.get("translation").get("translator")
-
-            video_upload_props = generate_upload_props(channel_type, video_dir, video_file, language_list, translator, credential_file_path)
+            video_upload_props = generate_upload_props(channel_type, video_dir, video_file, language_list, translator)
             video_num = video_num + 1
             try:
               video_id = initialize_upload(youtube, video_upload_props)
