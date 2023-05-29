@@ -83,11 +83,13 @@ def get_authenticated_service_oauth(oauth_file):
 def get_authenticated_service_api_key(key):
   return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=key)
 
-def translate_video_description(title, description, langs, transaltor):
+def translate_video_description(title, description, placeholders_filename, langs, transaltor):
     localization = {}
     for lang in langs:
-        localization[lang].description = transaltor.translate(description, lang)
-        localization[lang].title = transaltor.translate(title, lang)
+        values = {}
+        values['title'] = replace_placeholders(filename=placeholders_filename, str=title, translator=transaltor, lang=lang)
+        values['description'] = replace_placeholders(filename=placeholders_filename, str=description, video_name=values['title'], translator=transaltor, lang=lang)
+        localization[lang] = values
     return localization
 
 def initialize_upload(youtube, options):
@@ -95,12 +97,13 @@ def initialize_upload(youtube, options):
     snippet=dict(
       title=options.get("name"),
       description=options.get("description"),
+      defaultLanguage="ru"
     ),
     status=dict(
       privacyStatus=options.get("privacy"),
       selfDeclaredMadeForKids=False,
     ),
-    localization=options.get("localization")
+      localizations=options.get("localization")
   )
   if options.get("publish_time") is not None:
       body.get("status")["publishAt"] = options.get("publish_time")
@@ -113,7 +116,7 @@ def initialize_upload(youtube, options):
       media_body=MediaFileUpload(options.get("file"), chunksize=-1, resumable=True)
   )
 
-  return "1323"
+  return "123"
   #return resumable_upload(insert_request)
 
 
@@ -151,7 +154,7 @@ def resumable_upload(insert_request):
       print("Sleeping %f seconds and then retrying..." % sleep_seconds)
       time.sleep(sleep_seconds)
 
-def replace_placeholders(filename, str, video_name=None):
+def replace_placeholders(filename, str, video_name=None, translator=None, lang=None):
   with open(filename, 'r') as file:
       lines = file.readlines()
 
@@ -159,7 +162,14 @@ def replace_placeholders(filename, str, video_name=None):
   random_strings = random.sample(lines, replacement_count)
   output_string = str
 
+  if translator is not None and lang is not None:
+      output_string = translator.translate(output_string, lang)
+      print("output_string = " + output_string)
+
   for random_string in random_strings:
+    if translator is not None and lang is not None:
+      random_string = translator.translate(random_string, lang)
+      print("random_string = " + random_string)
     replaced_string = output_string.replace("#" + PLACEHOLDER, "#" + random_string.strip().replace(" ", ""), 1)
     if replaced_string == output_string:
       output_string = output_string.replace(PLACEHOLDER, random_string.strip(), 1)
@@ -221,15 +231,15 @@ def generate_upload_props(channel, config, video_file):
     placeholders_filename = get_placeholders_filename(video_dir, video_file)
 
     if os.path.exists(placeholders_filename):
-        video_upload_props["name"] = replace_placeholders(placeholders_filename, video_name)
-        video_upload_props["description"] = replace_placeholders(placeholders_filename, video_description, video_upload_props["name"])
+        video_upload_props["name"] = replace_placeholders(filename=placeholders_filename, str=video_name)
+        video_upload_props["description"] = replace_placeholders(filename=placeholders_filename, str=video_description, video_name=video_upload_props["name"])
     else:
         video_upload_props["name"] = video_name
         video_upload_props["description"] = video_description
         print("WARN! Placeholders file: " + placeholders_filename + " not exists. Using file name as video name.")
 
 
-    video_upload_props["localizations"] = translate_video_description(video_upload_props["name"], video_upload_props["description"], language_list, translator)
+    video_upload_props["localization"] = translate_video_description(video_name, video_description, placeholders_filename,  language_list, translator)
 
     video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
     video_upload_props["file"] = os.path.join(video_dir,video_file)
@@ -244,6 +254,7 @@ def generate_upload_props(channel, config, video_file):
         video_upload_props["publish_time"] = publish_time
     else:
         print("INFO: publication schedule is not set")
+    return  video_upload_props
 
 
 
@@ -286,7 +297,7 @@ if __name__ == '__main__':
         if video_file.endswith(VIDEO_FILE_EXTENSION):
             print("Uploading video: "+ video_file)
 
-            video_upload_props = generate_upload_props(channel_type, video_dir, video_file, language_list, translator)
+            video_upload_props = generate_upload_props(channel, config, video_file)
             video_num = video_num + 1
             try:
               video_id = initialize_upload(youtube, video_upload_props)
@@ -298,6 +309,9 @@ if __name__ == '__main__':
                 print("WARN! Thumbnail file not exists: " + thumbnail_file)
               os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
               os.rename(os.path.join(video_dir, video_file), os.path.join(archive_dir, video_file))
-              os.rename(placeholders_filename, os.path.join(archive_dir, os.path.basename(placeholders_filename)))
+              os.rename(
+                get_placeholders_filename(video_dir, video_file),
+                os.path.join(archive_dir, os.path.basename(get_placeholders_filename(video_dir, video_file)))
+              )
             except HttpError:
               print("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))

@@ -19,6 +19,7 @@ channels:
       languages:
         - 'en'
         - 'de'
+        - 'tr'
       translator: "deepl1"
   - id: UCg4nKDkbjejiPUJykG1YEhw
     oauth_secret_file: "client_secret_248310770804-2qq4jphm17rb95boul7nm275bdaacs23.apps.googleusercontent.com.json"
@@ -40,6 +41,7 @@ channels:
       languages:
         - 'en'
         - 'de'
+        - 'tr'
       translator: "deepl1"
 
 channel_types:
@@ -74,3 +76,5 @@ translators:
     type: "deepl"
     properties:
       auth_key: 1bb91e81-96f7-ae03-6cac-a18f40fdd598:fx
+      lang_overrides:
+        - en: "EN-US"
