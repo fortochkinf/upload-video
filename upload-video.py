@@ -8,6 +8,7 @@ import time
 import yaml
 import google.cloud
 import datetime
+import re
 
 import google.oauth2.credentials
 from googleapiclient.discovery import build
@@ -21,6 +22,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from translators.Translator import Translator
 from translators.DeeplTranslator import DeeplTranslator
 from translators.GoogleTranslator import GoogleTranslator
+from authorization.Authorization import *
 
 
 # Explicitly tell the underlying HTTP transport library not to retry, since
@@ -48,7 +50,7 @@ UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload"
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 YOUTUBE_SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
-GOOGLE_TRANSLATE_SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
+
 
 VALID_PRIVACY_STATUSES = ("public", "private", "unlisted")
 
@@ -58,37 +60,12 @@ VIDEO_THUMBNAIL_EXTENSION = ("jpg", "jpeg", "gif", "png")
 PLACEHOLDER="<PHRASE_FROM_FILE>"
 VIDEO_NAME_PLACEHOLDER="<VIDEO_NAME>"
 
-
-
-def get_credentials(oauth_file, scopes):
-    creds = None
-    token_cache_file_name = oauth_file + ".cache"
-    if os.path.exists(token_cache_file_name):
-        creds = Credentials.from_authorized_user_file(token_cache_file_name, scopes)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(google.auth.transport.requests.Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(oauth_file, scopes)
-            creds = flow.run_local_server(port=0)
-    with open(token_cache_file_name, 'w') as token:
-        token.write(creds.to_json())
-    return creds
-
-# Authorize the request and store authorization credentials.
-def get_authenticated_service_oauth(oauth_file):
-    creds = get_credentials(oauth_file, YOUTUBE_SCOPES)
-    return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, credentials = creds)
-
-def get_authenticated_service_api_key(key):
-  return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=key)
-
-def translate_video_description(title, description, placeholders_filename, langs, transaltor):
+def translate_video_description(title, description, placeholders_filename, langs, transaltor, source_lang):
     localization = {}
     for lang in langs:
         values = {}
-        values['title'] = replace_placeholders(filename=placeholders_filename, str=title, translator=transaltor, lang=lang)
-        values['description'] = replace_placeholders(filename=placeholders_filename, str=description, video_name=values['title'], translator=transaltor, lang=lang)
+        values['title'] = replace_placeholders(filename=placeholders_filename, text=title, translator=transaltor, lang=lang, from_lang=source_lang)
+        values['description'] = replace_placeholders(filename=placeholders_filename, text=description, video_name=values['title'], translator=transaltor, lang=lang, from_lang=source_lang)
         localization[lang] = values
     return localization
 
@@ -116,8 +93,8 @@ def initialize_upload(youtube, options):
       media_body=MediaFileUpload(options.get("file"), chunksize=-1, resumable=True)
   )
 
-  return "123"
-  #return resumable_upload(insert_request)
+  #return "123"
+  return resumable_upload(insert_request)
 
 
 def resumable_upload(insert_request):
@@ -154,34 +131,70 @@ def resumable_upload(insert_request):
       print("Sleeping %f seconds and then retrying..." % sleep_seconds)
       time.sleep(sleep_seconds)
 
-def replace_placeholders(filename, str, video_name=None, translator=None, lang=None):
+def replace_placeholders(filename, text, video_name=None, translator=None, lang=None, from_lang=None):
   with open(filename, 'r') as file:
       lines = file.readlines()
 
-  replacement_count = min(str.count(PLACEHOLDER), len(lines))
+  replacement_count = min(text.count(PLACEHOLDER), len(lines))
   random_strings = random.sample(lines, replacement_count)
-  output_string = str
+  string_parts = re.split('(#*<.+?>|\\n)',text)
 
-  if translator is not None and lang is not None:
-      output_string = translator.translate(output_string, lang)
-      print("output_string = " + output_string)
+  #print(random_strings)
+  random_string_num = 0
 
-  for random_string in random_strings:
-    if translator is not None and lang is not None:
-      random_string = translator.translate(random_string, lang)
-      print("random_string = " + random_string)
-    replaced_string = output_string.replace("#" + PLACEHOLDER, "#" + random_string.strip().replace(" ", ""), 1)
-    if replaced_string == output_string:
-      output_string = output_string.replace(PLACEHOLDER, random_string.strip(), 1)
-    else:
-      output_string = replaced_string
-  output_string = output_string.replace("#" + PLACEHOLDER, "")
-  output_string = output_string.replace(PLACEHOLDER, "")
+  for i in range(len(string_parts)):
+      part = string_parts[i]
+
+      if part.strip() == "" or part == "\n":
+          string_parts[i] = part
+          continue
+
+      try:
+          random_string = random_strings[random_string_num].strip()
+      except IndexError:
+          string_parts[i] = ""
+          continue
+
+      leading_spaces = len(part) - len(part.lstrip())
+      trailing_spaces = len(part) - len(part.rstrip())
+
+      part = part.strip()
+      #print("part: ", part, ", leading: ", leading_spaces, ", trailing: ", trailing_spaces)
+      hashtag = False
+
+      if part == ('#' + PLACEHOLDER):
+          replacement = random_string
+          random_string_num = random_string_num + 1
+          hashtag = True
+      elif part == PLACEHOLDER:
+          replacement = random_string
+          random_string_num = random_string_num + 1
+
+      else:
+          replacement = part
+
+      if translator is not None and lang is not None and replacement != "":
+          replacement = translator.translate(replacement, lang, from_lang).strip()
+
+
+      if hashtag:
+          replacement = '#' + replacement.replace(" ","").lower()
+
+      replacement = (' ' * leading_spaces) + replacement + (' ' * trailing_spaces)
+
+      string_parts[i] = replacement
+      #print("replacement: ", replacement, ", leading: ", leading_spaces, ", trailing: ", trailing_spaces)
+
+
+  result = ''.join(string_parts).rstrip()
+  #print("result: ", result)
+
+
 
   if video_name is not None:
-      output_string = output_string.replace(VIDEO_NAME_PLACEHOLDER, video_name)
+      result = result.replace(VIDEO_NAME_PLACEHOLDER, video_name)
 
-  return output_string
+  return result
 
 def read_config():
     return  yaml.safe_load(Path(CONFIGURATION_FILE).read_text())
@@ -195,6 +208,8 @@ def calculate_publish_time(days_after, at_time):
     date = datetime.datetime.now()
     date = date + datetime.timedelta(days=days_after)
     date = date.replace(hour=hour, minute=minute, second=0)
+    date = date - (date.replace(tzinfo=datetime.timezone.utc) - date.astimezone(datetime.timezone.utc))
+
     #YYYY-MM-DDThh:mm:ss.sZ
     return date.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -231,15 +246,15 @@ def generate_upload_props(channel, config, video_file):
     placeholders_filename = get_placeholders_filename(video_dir, video_file)
 
     if os.path.exists(placeholders_filename):
-        video_upload_props["name"] = replace_placeholders(filename=placeholders_filename, str=video_name)
-        video_upload_props["description"] = replace_placeholders(filename=placeholders_filename, str=video_description, video_name=video_upload_props["name"])
+        video_upload_props["name"] = replace_placeholders(filename=placeholders_filename, text=video_name)
+        video_upload_props["description"] = replace_placeholders(filename=placeholders_filename, text=video_description, video_name=video_upload_props["name"])
     else:
         video_upload_props["name"] = video_name
         video_upload_props["description"] = video_description
         print("WARN! Placeholders file: " + placeholders_filename + " not exists. Using file name as video name.")
 
 
-    video_upload_props["localization"] = translate_video_description(video_name, video_description, placeholders_filename,  language_list, translator)
+    video_upload_props["localization"] = translate_video_description(video_name, video_description, placeholders_filename,  language_list, translator, config.get("text_language"))
 
     video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
     video_upload_props["file"] = os.path.join(video_dir,video_file)
@@ -254,6 +269,8 @@ def generate_upload_props(channel, config, video_file):
         video_upload_props["publish_time"] = publish_time
     else:
         print("INFO: publication schedule is not set")
+
+    video_upload_props["default_language"] = config.get("text_language")
     return  video_upload_props
 
 
@@ -291,7 +308,7 @@ if __name__ == '__main__':
     video_dir = channel.get("publish_directory")
     archive_dir = channel.get("archive_directory")
     credential_file_path = os.path.join("secrets",channel.get("oauth_secret_file"))
-    youtube = get_authenticated_service_oauth(os.path.join("secrets",channel.get("oauth_secret_file")))
+    youtube = get_authenticated_service_oauth(os.path.join("secrets",channel.get("oauth_secret_file")), YOUTUBE_SCOPES, YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION)
     video_num = 0
     for video_file in sorted(os.listdir(video_dir)):
         if video_file.endswith(VIDEO_FILE_EXTENSION):
@@ -304,7 +321,7 @@ if __name__ == '__main__':
               thumbnail_file = get_thumnail_file(video_dir, video_file)
               if os.path.exists(thumbnail_file):
                 print("Setting thumbnail " + thumbnail_file + " for video id: " + video_id)
-                #upload_thumbnail(youtube, video_id, thumbnail_file)
+                upload_thumbnail(youtube, video_id, thumbnail_file)
               else:
                 print("WARN! Thumbnail file not exists: " + thumbnail_file)
               os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))

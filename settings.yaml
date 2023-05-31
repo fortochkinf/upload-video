@@ -1,3 +1,5 @@
+text_language: 'ru'
+
 channels:
   - id: UCB5NVLmSY1y34d4oveDs7ig
     oauth_secret_file: "client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json"
@@ -20,7 +22,8 @@ channels:
         - 'en'
         - 'de'
         - 'tr'
-      translator: "deepl1"
+        - 'ar'
+      translator: "google1"
   - id: UCg4nKDkbjejiPUJykG1YEhw
     oauth_secret_file: "client_secret_248310770804-2qq4jphm17rb95boul7nm275bdaacs23.apps.googleusercontent.com.json"
     name: Машинный перевод
@@ -42,7 +45,8 @@ channels:
         - 'en'
         - 'de'
         - 'tr'
-      translator: "deepl1"
+        - 'ar'
+      translator: "google1"
 
 channel_types:
   - id: "poems"
@@ -52,9 +56,9 @@ channel_types:
       - "<PHRASE_FROM_FILE> <PHRASE_FROM_FILE> <PHRASE_FROM_FILE> кроет"
       - "Я достаю <PHRASE_FROM_FILE> из <PHRASE_FROM_FILE>"
     video_description_variants:
-      - "Красивое стихотворение <VIDEO_NAME> напоминает <PHRASE_FROM_FILE>. #hashtag #<PHRASE_FROM_FILE>"
-      - "Шарль Бодлер. О <VIDEO_NAME>. #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
-      - "Маяковский, знаменитый стих: <VIDEO_NAME> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
+      - "Красивое стихотворение <VIDEO_NAME> напоминает <PHRASE_FROM_FILE>. \n#hashtag #<PHRASE_FROM_FILE>"
+      - "Шарль Бодлер. О <VIDEO_NAME>. \n#hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
+      - "Маяковский, знаменитый стих: \n<VIDEO_NAME> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
 
   - id: "science"
     name: "science"
@@ -63,15 +67,15 @@ channel_types:
       - "Правило <PHRASE_FROM_FILE>: Крути <PHRASE_FROM_FILE> пока не <PHRASE_FROM_FILE>"
       - "19 Чудо света. <PHRASE_FROM_FILE> сделанный самим <PHRASE_FROM_FILE>"
     video_description_variants:
-      - "<VIDEO_NAME>. Раздел 2. Зацепление <PHRASE_FROM_FILE>. #hashtag #<PHRASE_FROM_FILE>"
-      - "Теория <VIDEO_NAME>. Шарнирный <PHRASE_FROM_FILE> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
-      - "Молекулярный <VIDEO_NAME>. Субатомный эксперимент с <PHRASE_FROM_FILE> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
+      - "<VIDEO_NAME>. \nРаздел 2. Зацепление <PHRASE_FROM_FILE>. #hashtag #<PHRASE_FROM_FILE>"
+      - "Теория <VIDEO_NAME>. \nШарнирный <PHRASE_FROM_FILE> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
+      - "Молекулярный <VIDEO_NAME>. \nСубатомный эксперимент с <PHRASE_FROM_FILE> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
 
 translators:
   - name: "google1"
     type: "google"
     properties:
-      auth_file: "client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json"
+      oauth_secret_file: "client_secret_947296238867-01tqchl1d56g7ke998mo1brtqveflrsm.apps.googleusercontent.com.json"
   - name: "deepl1"
     type: "deepl"
     properties:

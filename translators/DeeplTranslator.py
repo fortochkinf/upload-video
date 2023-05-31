@@ -18,12 +18,5 @@ class DeeplTranslator(Translator):
 
     def translate(self, text, lang, from_lang = None):
         translator = deepl.Translator(self.params.get("auth_key"))
-        text_for_translate = text + "⠀" #hack with deepl. it may remove triangle brackets from the end, so add a U+2800 and then remove it rom result
-        text_for_translate = text_for_translate.replace('<', '"<')
-        text_for_translate = text_for_translate.replace('>', '>"')
-        result = translator.translate_text(text_for_translate, target_lang=self.fix_lang(lang))
-        result_text = result.text
-        result_text = result_text.replace("⠀","")
-        result_text = result_text.replace('"<', '<') #sometimes deepl translate tag name, add quotes before and remove after
-        result_text = result_text.replace('>"', '>')
-        return result_text
+        result = translator.translate_text(text, preserve_formatting=True, tag_handling='html', target_lang=self.fix_lang(lang), source_lang=self.fix_lang(from_lang))
+        return result.text
