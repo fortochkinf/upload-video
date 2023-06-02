@@ -1,10 +1,9 @@
-text_language: 'ru'
-
 channels:
   - id: UCB5NVLmSY1y34d4oveDs7ig
     oauth_secret_file: "client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json"
     name: Смотри на русском
     type: 'poems'
+    default_language: "ru"
     publish_directory: "./channels/1/videos"
     archive_directory: "./channels/1/archive"
     publication_options:
@@ -22,12 +21,12 @@ channels:
         - 'en'
         - 'de'
         - 'tr'
-        - 'ar'
-      translator: "google1"
+      translator: "deepl1"
   - id: UCg4nKDkbjejiPUJykG1YEhw
     oauth_secret_file: "client_secret_248310770804-2qq4jphm17rb95boul7nm275bdaacs23.apps.googleusercontent.com.json"
     name: Машинный перевод
     type: 'science'
+    default_language: "ru"
     publish_directory: "./channels/2/videos"
     archive_directory: "./channels/2/archive"
     publication_options:
@@ -45,8 +44,7 @@ channels:
         - 'en'
         - 'de'
         - 'tr'
-        - 'ar'
-      translator: "google1"
+      translator: "deepl1"
 
 channel_types:
   - id: "poems"

@@ -74,7 +74,8 @@ def initialize_upload(youtube, options):
     snippet=dict(
       title=options.get("name"),
       description=options.get("description"),
-      defaultLanguage="ru"
+      defaultLanguage=options.get("default_language"),
+      defaultAudioLanguage=options.get("default_language")
     ),
     status=dict(
       privacyStatus=options.get("privacy"),
@@ -178,7 +179,7 @@ def replace_placeholders(filename, text, video_name=None, translator=None, lang=
 
 
       if hashtag:
-          replacement = '#' + replacement.replace(" ","").lower()
+          replacement = '#' + ''.join(ch for ch in replacement if ch.isalnum()).lower()
 
       replacement = (' ' * leading_spaces) + replacement + (' ' * trailing_spaces)
 
@@ -254,7 +255,7 @@ def generate_upload_props(channel, config, video_file):
         print("WARN! Placeholders file: " + placeholders_filename + " not exists. Using file name as video name.")
 
 
-    video_upload_props["localization"] = translate_video_description(video_name, video_description, placeholders_filename,  language_list, translator, config.get("text_language"))
+    video_upload_props["localization"] = translate_video_description(video_name, video_description, placeholders_filename,  language_list, translator, channel.get("default_language"))
 
     video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
     video_upload_props["file"] = os.path.join(video_dir,video_file)
@@ -270,7 +271,7 @@ def generate_upload_props(channel, config, video_file):
     else:
         print("INFO: publication schedule is not set")
 
-    video_upload_props["default_language"] = config.get("text_language")
+    video_upload_props["default_language"] = channel.get("default_language")
     return  video_upload_props
 
 
