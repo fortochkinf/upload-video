@@ -9,6 +9,7 @@ import yaml
 import google.cloud
 import datetime
 import re
+import pytz
 
 import google.oauth2.credentials
 from googleapiclient.discovery import build
@@ -22,6 +23,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from translators.Translator import Translator
 from translators.DeeplTranslator import DeeplTranslator
 from translators.GoogleTranslator import GoogleTranslator
+from translators.StubTranslator import StubTranslator
 from authorization.Authorization import *
 
 
@@ -60,12 +62,15 @@ VIDEO_THUMBNAIL_EXTENSION = ("jpg", "jpeg", "gif", "png")
 PLACEHOLDER="<PHRASE_FROM_FILE>"
 VIDEO_NAME_PLACEHOLDER="<VIDEO_NAME>"
 
+
+config = yaml.safe_load(Path(CONFIGURATION_FILE).read_text())
+
 def translate_video_description(title, description, placeholders_filename, langs, transaltor, source_lang):
     localization = {}
     for lang in langs:
         values = {}
-        values['title'] = replace_placeholders(filename=placeholders_filename, text=title, translator=transaltor, lang=lang, from_lang=source_lang)
-        values['description'] = replace_placeholders(filename=placeholders_filename, text=description, video_name=values['title'], translator=transaltor, lang=lang, from_lang=source_lang)
+        values['title'] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=title, translator=transaltor, lang=lang, from_lang=source_lang), 100, " ")
+        values['description'] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=description, video_name=values['title'], translator=transaltor, lang=lang, from_lang=source_lang), 100, " ")
         localization[lang] = values
     return localization
 
@@ -93,8 +98,6 @@ def initialize_upload(youtube, options):
       body=body,
       media_body=MediaFileUpload(options.get("file"), chunksize=-1, resumable=True)
   )
-
-  #return "123"
   return resumable_upload(insert_request)
 
 
@@ -132,9 +135,25 @@ def resumable_upload(insert_request):
       print("Sleeping %f seconds and then retrying..." % sleep_seconds)
       time.sleep(sleep_seconds)
 
+
+def is_translation_meaningless(text):
+    allowed_s = "!@#$%^&*()_-+=\"'|\?/.,:[]<>";
+    return all(ch in allowed_s for ch in text)
+
+def truncate_by_length_at_last_character(text, max_size, char):
+    if len(text) <= max_size:
+        return text
+    print("WARNING!!!: ", "Text length ", len(text) ," is out of limit! Text:\n" + text)
+    print("truncated to:\n",text[0:text.rindex(char, 0, max_size)])
+    return text[0:text.rindex(char, 0, max_size)]
+
 def replace_placeholders(filename, text, video_name=None, translator=None, lang=None, from_lang=None):
-  with open(filename, 'r') as file:
-      lines = file.readlines()
+
+  try:
+      with open(filename, 'r') as file:
+          lines = file.readlines()
+  except FileNotFoundError:
+      lines = []
 
   replacement_count = min(text.count(PLACEHOLDER), len(lines))
   random_strings = random.sample(lines, replacement_count)
@@ -151,7 +170,11 @@ def replace_placeholders(filename, text, video_name=None, translator=None, lang=
           continue
 
       try:
-          random_string = random_strings[random_string_num].strip()
+          if len(random_strings) > 0:
+            random_string = random_strings[random_string_num].strip()
+          else:
+            random_string = ""
+            string_parts[i] = ""
       except IndexError:
           string_parts[i] = ""
           continue
@@ -171,11 +194,18 @@ def replace_placeholders(filename, text, video_name=None, translator=None, lang=
           replacement = random_string
           random_string_num = random_string_num + 1
 
+      elif part == VIDEO_NAME_PLACEHOLDER:
+          replacement = video_name
+
       else:
           replacement = part
 
       if translator is not None and lang is not None and replacement != "":
-          replacement = translator.translate(replacement, lang, from_lang).strip()
+          before_translate = replacement
+          if not is_translation_meaningless(replacement):
+            replacement = truncate_by_length_at_last_character(replacement,config.get("description_max_length")," ")
+            replacement = translator.translate(replacement, lang, from_lang).strip()
+            print("Translator call. text:", before_translate, "translated:", replacement, "lang:", lang, "from_lang:", from_lang)
 
 
       if hashtag:
@@ -190,15 +220,7 @@ def replace_placeholders(filename, text, video_name=None, translator=None, lang=
   result = ''.join(string_parts).rstrip()
   #print("result: ", result)
 
-
-
-  if video_name is not None:
-      result = result.replace(VIDEO_NAME_PLACEHOLDER, video_name)
-
   return result
-
-def read_config():
-    return  yaml.safe_load(Path(CONFIGURATION_FILE).read_text())
 
 def get_placeholders_filename(dir, video_file):
     return os.path.splitext(os.path.join(dir,video_file))[0]+'.txt'
@@ -206,7 +228,7 @@ def get_placeholders_filename(dir, video_file):
 def calculate_publish_time(days_after, at_time):
     hour = int(at_time.split(":")[0])
     minute = int(at_time.split(":")[1])
-    date = datetime.datetime.now()
+    date = datetime.datetime.now(pytz.timezone(config.get("timezone")))
     date = date + datetime.timedelta(days=days_after)
     date = date.replace(hour=hour, minute=minute, second=0)
     date = date - (date.replace(tzinfo=datetime.timezone.utc) - date.astimezone(datetime.timezone.utc))
@@ -226,7 +248,7 @@ def get_thumnail_file(dir, video_file):
             return os.path.join(dir,file)
 
 
-def generate_upload_props(channel, config, video_file):
+def generate_upload_props(channel, video_file):
 
     channel_type = None
     for channel_type_candidate in config.get("channel_types"):
@@ -247,11 +269,11 @@ def generate_upload_props(channel, config, video_file):
     placeholders_filename = get_placeholders_filename(video_dir, video_file)
 
     if os.path.exists(placeholders_filename):
-        video_upload_props["name"] = replace_placeholders(filename=placeholders_filename, text=video_name)
-        video_upload_props["description"] = replace_placeholders(filename=placeholders_filename, text=video_description, video_name=video_upload_props["name"])
+        video_upload_props["name"] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=video_name), config.get("title_max_length"), " ")
+        video_upload_props["description"] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=video_description, video_name=video_upload_props["name"]), config.get("description_max_length"), " ")
     else:
-        video_upload_props["name"] = video_name
-        video_upload_props["description"] = video_description
+        video_upload_props["name"] = truncate_by_length_at_last_character(video_name, config.get("title_max_length"), " ")
+        video_upload_props["description"] = truncate_by_length_at_last_character(video_description, config.get("description_max_length"), " ")
         print("WARN! Placeholders file: " + placeholders_filename + " not exists. Using file name as video name.")
 
 
@@ -294,12 +316,14 @@ def get_translator(channel, transaltors) -> Translator:
                 return GoogleTranslator(properties)
             elif (translator_type == "deepl"):
                 return DeeplTranslator(properties)
+            elif (translator_type == "stub"):
+                return StubTranslator(properties)
             else:
                 raise Exception("Unknown translator type: " + translator_type)
     return None
 
 if __name__ == '__main__':
-  config = read_config()
+
 
 
   video_upload_props = {}
@@ -315,7 +339,7 @@ if __name__ == '__main__':
         if video_file.endswith(VIDEO_FILE_EXTENSION):
             print("Uploading video: "+ video_file)
 
-            video_upload_props = generate_upload_props(channel, config, video_file)
+            video_upload_props = generate_upload_props(channel, video_file)
             video_num = video_num + 1
             try:
               video_id = initialize_upload(youtube, video_upload_props)
@@ -325,11 +349,20 @@ if __name__ == '__main__':
                 upload_thumbnail(youtube, video_id, thumbnail_file)
               else:
                 print("WARN! Thumbnail file not exists: " + thumbnail_file)
-              os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
-              os.rename(os.path.join(video_dir, video_file), os.path.join(archive_dir, video_file))
-              os.rename(
-                get_placeholders_filename(video_dir, video_file),
-                os.path.join(archive_dir, os.path.basename(get_placeholders_filename(video_dir, video_file)))
-              )
+              try:
+                os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
+              except FileNotFoundError:
+                pass
+              try:
+                os.rename(os.path.join(video_dir, video_file), os.path.join(archive_dir, video_file))
+              except FileNotFoundError:
+                pass
+              try:
+                  os.rename(
+                    get_placeholders_filename(video_dir, video_file),
+                    os.path.join(archive_dir, os.path.basename(get_placeholders_filename(video_dir, video_file)))
+                  )
+              except FileNotFoundError:
+                pass
             except HttpError:
               print("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))

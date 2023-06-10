@@ -18,5 +18,5 @@ class DeeplTranslator(Translator):
 
     def translate(self, text, lang, from_lang = None):
         translator = deepl.Translator(self.params.get("auth_key"))
-        result = translator.translate_text(text, preserve_formatting=True, tag_handling='html', target_lang=self.fix_lang(lang), source_lang=self.fix_lang(from_lang))
+        result = translator.translate_text(text, preserve_formatting=True, tag_handling='html', target_lang=self.fix_lang(lang), source_lang=from_lang)
         return result.text

@@ -1,3 +1,7 @@
+timezone: Europe/Moscow
+title_max_length: 100
+description_max_length: 5000
+
 channels:
   - id: UCB5NVLmSY1y34d4oveDs7ig
     oauth_secret_file: "client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json"
@@ -18,7 +22,12 @@ channels:
     translation:
       enabled: true
       languages:
-        - 'en'
+        - 'ja'
+        - 'fr'
+        - 'it'
+        - 'pt'
+        - 'ko'
+        - 'es'
         - 'de'
         - 'tr'
       translator: "deepl1"
@@ -41,7 +50,12 @@ channels:
     translation:
       enabled: true
       languages:
-        - 'en'
+        - 'ja'
+        - 'fr'
+        - 'it'
+        - 'pt'
+        - 'ko'
+        - 'es'
         - 'de'
         - 'tr'
       translator: "deepl1"
@@ -80,3 +94,6 @@ translators:
       auth_key: 1bb91e81-96f7-ae03-6cac-a18f40fdd598:fx
       lang_overrides:
         - en: "EN-US"
+        - pt: "PT-PT"
+  - name: "stub1"
+    type: "stub"
