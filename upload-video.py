@@ -10,6 +10,8 @@ import google.cloud
 import datetime
 import re
 import pytz
+import argparse
+
 
 import google.oauth2.credentials
 from googleapiclient.discovery import build
@@ -24,6 +26,10 @@ from translators.Translator import Translator
 from translators.DeeplTranslator import DeeplTranslator
 from translators.GoogleTranslator import GoogleTranslator
 from translators.StubTranslator import StubTranslator
+from exceptions.ScheduleNotPresentException import ScheduleNotPresentException
+from exceptions.QuotaExceededException import QuotaExceededException
+
+
 from authorization.Authorization import *
 
 
@@ -69,8 +75,10 @@ def translate_video_description(title, description, placeholders_filename, langs
     localization = {}
     for lang in langs:
         values = {}
-        values['title'] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=title, translator=transaltor, lang=lang, from_lang=source_lang), 100, " ")
-        values['description'] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=description, video_name=values['title'], translator=transaltor, lang=lang, from_lang=source_lang), 100, " ")
+        values['title'] = truncate_by_length_at_last_character(replace_placeholders(
+            filename=placeholders_filename, text=title, translator=transaltor, lang=lang, from_lang=source_lang), config.get("title_max_length"), " ")
+        values['description'] = truncate_by_length_at_last_character(replace_placeholders(
+            filename=placeholders_filename, text=description, video_name=values['title'], translator=transaltor, lang=lang, from_lang=source_lang), config.get("description_max_length"), " ")
         localization[lang] = values
     return localization
 
@@ -115,13 +123,14 @@ def resumable_upload(insert_request):
           return response['id']
         else:
           exit("The upload failed with an unexpected response: %s" % response)
-    except HttpError:
+    except HttpError as e:
       if e.resp.status in RETRIABLE_STATUS_CODES:
-        error = "A retriable HTTP error %d occurred:\n%s" % (e.resp.status,
-                                                             e.content)
+        error = "A retriable HTTP error %d occurred:\n%s" % (e.resp.status, e.content)
       else:
+        if e.content.find(b"quotaExceeded") != -1:
+            raise QuotaExceededException
         raise
-    except RETRIABLE_EXCEPTIONS:
+    except RETRIABLE_EXCEPTIONS as e:
       error = "A retriable error occurred: %s" % e
 
     if error is not None:
@@ -248,7 +257,21 @@ def get_thumnail_file(dir, video_file):
             return os.path.join(dir,file)
 
 
-def generate_upload_props(channel, video_file):
+def generate_upload_props(channel, video_file, video_num):
+
+    video_upload_props = {}
+    publication_options = channel.get("publication_options")
+    if publication_options.get("schedule") is not None:
+        schedule = publication_options.get("schedule")
+        try:
+            publish_time = calculate_publish_time(schedule[video_num].get("days_after"),schedule[video_num].get("at_time"))
+        except IndexError:
+            print("Schedule have only " + str(video_num) + " records, but there are more videos for upload, so skipping upload next videos")
+            raise ScheduleNotPresentException
+        video_upload_props["publish_time"] = publish_time
+    else:
+        print("INFO: publication schedule is not set")
+
 
     channel_type = None
     for channel_type_candidate in config.get("channel_types"):
@@ -262,36 +285,20 @@ def generate_upload_props(channel, video_file):
 
     translator = get_translator(channel, config.get("translators"))
     language_list = channel.get("translation").get("languages")
-    video_upload_props = {}
+
     video_name = random.choice(channel_type.get("video_name_variants"))
     video_description = random.choice(channel_type.get("video_description_variants"))
 
     placeholders_filename = get_placeholders_filename(video_dir, video_file)
 
-    if os.path.exists(placeholders_filename):
-        video_upload_props["name"] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=video_name), config.get("title_max_length"), " ")
-        video_upload_props["description"] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=video_description, video_name=video_upload_props["name"]), config.get("description_max_length"), " ")
-    else:
-        video_upload_props["name"] = truncate_by_length_at_last_character(video_name, config.get("title_max_length"), " ")
-        video_upload_props["description"] = truncate_by_length_at_last_character(video_description, config.get("description_max_length"), " ")
-        print("WARN! Placeholders file: " + placeholders_filename + " not exists. Using file name as video name.")
-
+    video_upload_props["name"] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=video_name), config.get("title_max_length"), " ")
+    video_upload_props["description"] = truncate_by_length_at_last_character(replace_placeholders(filename=placeholders_filename, text=video_description, video_name=video_upload_props["name"]), config.get("description_max_length"), " ")
 
     video_upload_props["localization"] = translate_video_description(video_name, video_description, placeholders_filename,  language_list, translator, channel.get("default_language"))
 
     video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
     video_upload_props["file"] = os.path.join(video_dir,video_file)
-    publication_options = channel.get("publication_options")
-    if publication_options.get("schedule") is not None:
-        schedule = publication_options.get("schedule")
-        try:
-            publish_time = calculate_publish_time(schedule.get("days_after"),schedule.get("at_time")[video_num])
-        except IndexError:
-            print("Schedule have only " + video_num + " records in total, but there are more videos for upload, so skipping upload next videos")
-            exit(1)
-        video_upload_props["publish_time"] = publish_time
-    else:
-        print("INFO: publication schedule is not set")
+
 
     video_upload_props["default_language"] = channel.get("default_language")
     return  video_upload_props
@@ -324,45 +331,53 @@ def get_translator(channel, transaltors) -> Translator:
 
 if __name__ == '__main__':
 
-
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--channel', dest='channel', type=str, help='specific channel')
+  args = parser.parse_args()
 
   video_upload_props = {}
 
   for channel in config.get("channels"):
+    if args.channel is not None and str(channel.get("id")) != args.channel:
+        continue
     print("Channel: " + channel.get("name"))
     video_dir = channel.get("publish_directory")
     archive_dir = channel.get("archive_directory")
     credential_file_path = os.path.join("secrets",channel.get("oauth_secret_file"))
     youtube = get_authenticated_service_oauth(os.path.join("secrets",channel.get("oauth_secret_file")), YOUTUBE_SCOPES, YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION)
     video_num = 0
-    for video_file in sorted(os.listdir(video_dir)):
-        if video_file.endswith(VIDEO_FILE_EXTENSION):
-            print("Uploading video: "+ video_file)
-
-            video_upload_props = generate_upload_props(channel, video_file)
-            video_num = video_num + 1
-            try:
-              video_id = initialize_upload(youtube, video_upload_props)
-              thumbnail_file = get_thumnail_file(video_dir, video_file)
-              if os.path.exists(thumbnail_file):
-                print("Setting thumbnail " + thumbnail_file + " for video id: " + video_id)
-                upload_thumbnail(youtube, video_id, thumbnail_file)
-              else:
-                print("WARN! Thumbnail file not exists: " + thumbnail_file)
-              try:
-                os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
-              except FileNotFoundError:
-                pass
-              try:
-                os.rename(os.path.join(video_dir, video_file), os.path.join(archive_dir, video_file))
-              except FileNotFoundError:
-                pass
-              try:
-                  os.rename(
-                    get_placeholders_filename(video_dir, video_file),
-                    os.path.join(archive_dir, os.path.basename(get_placeholders_filename(video_dir, video_file)))
-                  )
-              except FileNotFoundError:
-                pass
-            except HttpError:
-              print("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
+    try:
+        for video_file in sorted(os.listdir(video_dir)):
+            if video_file.endswith(VIDEO_FILE_EXTENSION):
+                print("Uploading video: "+ video_file)
+                video_upload_props = generate_upload_props(channel, video_file, video_num)
+                video_num = video_num + 1
+                try:
+                  video_id = initialize_upload(youtube, video_upload_props)
+                  thumbnail_file = get_thumnail_file(video_dir, video_file)
+                  if os.path.exists(thumbnail_file):
+                    print("Setting thumbnail " + thumbnail_file + " for video id: " + video_id)
+                    upload_thumbnail(youtube, video_id, thumbnail_file)
+                  else:
+                    print("WARN! Thumbnail file not exists: " + thumbnail_file)
+                  try:
+                    os.rename(thumbnail_file, os.path.join(archive_dir, os.path.basename(thumbnail_file)))
+                  except FileNotFoundError:
+                    pass
+                  try:
+                    os.rename(os.path.join(video_dir, video_file), os.path.join(archive_dir, video_file))
+                  except FileNotFoundError:
+                    pass
+                  try:
+                      os.rename(
+                        get_placeholders_filename(video_dir, video_file),
+                        os.path.join(archive_dir, os.path.basename(get_placeholders_filename(video_dir, video_file)))
+                      )
+                  except FileNotFoundError:
+                    pass
+                except HttpError as e:
+                  print("An HTTP error %d occurred:\n%s" % (e.resp.status, e.content))
+    except (ScheduleNotPresentException, QuotaExceededException) as e:
+        if e.__class__.__name__ == "QuotaExceededException":
+           print("ERROR!!! Quota exceeded skipping this channel.")
+        continue

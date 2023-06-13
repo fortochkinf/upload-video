@@ -3,7 +3,7 @@ title_max_length: 100
 description_max_length: 5000
 
 channels:
-  - id: UCB5NVLmSY1y34d4oveDs7ig
+  - id: 1
     oauth_secret_file: "client_secret_493855645788-dg5hmdto8du0mn5he7uvdlog9f3lrto0.apps.googleusercontent.com.json"
     name: Смотри на русском
     type: 'poems'
@@ -15,10 +15,8 @@ channels:
       privacy: 'private'
       #can be set only if privacy = private (https://stackoverflow.com/questions/20025814/can-i-schedule-youtube-videos-for-release-via-the-api-and-other-limited-featu)
       schedule:
-        days_after: 5
-        at_time:
-          - '16:00'
-          - '18:00'
+        - days_after: 5
+          at_time: '16:00'
     translation:
       enabled: true
       languages:
@@ -31,7 +29,7 @@ channels:
         - 'de'
         - 'tr'
       translator: "deepl1"
-  - id: UCg4nKDkbjejiPUJykG1YEhw
+  - id: 2
     oauth_secret_file: "client_secret_248310770804-2qq4jphm17rb95boul7nm275bdaacs23.apps.googleusercontent.com.json"
     name: Машинный перевод
     type: 'science'
@@ -43,10 +41,8 @@ channels:
       privacy: 'private'
       #can be set only if privacy = private (https://stackoverflow.com/questions/20025814/can-i-schedule-youtube-videos-for-release-via-the-api-and-other-limited-featu)
       schedule:
-        days_after: 2
-        at_time:
-          - '16:00'
-          - '18:00'
+        - days_after: 5
+          at_time: '16:00'
     translation:
       enabled: true
       languages:
