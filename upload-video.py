@@ -88,7 +88,8 @@ def initialize_upload(youtube, options):
       title=options.get("name"),
       description=options.get("description"),
       defaultLanguage=options.get("default_language"),
-      defaultAudioLanguage=options.get("default_language")
+      defaultAudioLanguage=options.get("default_language"),
+      tags=options.get("tags")
     ),
     status=dict(
       privacyStatus=options.get("privacy"),
@@ -251,11 +252,42 @@ def upload_thumbnail(youtube, video_id, file):
         media_body=file
     ).execute()
 
-def get_thumnail_file(dir, video_file):
+def get_thumbnail_file(dir, video_file):
     for file in sorted(os.listdir(dir)):
         if file.endswith(VIDEO_THUMBNAIL_EXTENSION) and file.startswith(os.path.splitext(video_file)[0]):
             return os.path.join(dir,file)
 
+
+def get_tags(filename, tags_list):
+    print("tagsList", tags_list)
+    if tags_list is not None:
+        result = []
+        try:
+            with open(filename, 'r') as file:
+                lines = file.readlines()
+        except FileNotFoundError:
+            lines = []
+
+        placeholder_count = 0
+        for tag in tags_list:
+            if tag.strip() == PLACEHOLDER:
+                placeholder_count = placeholder_count + 1
+
+        replacement_count = min(placeholder_count, len(lines))
+        random_strings = random.sample(lines, replacement_count)
+
+        tag_number = 0
+        for tag in tags_list:
+            if tag.strip() == PLACEHOLDER:
+                if (tag_number <= replacement_count):
+                    result.append(random_strings[tag_number].strip())
+            else:
+                result.append(tag)
+
+        return result
+
+    else:
+        return None
 
 def generate_upload_props(channel, video_file, video_num):
 
@@ -298,7 +330,8 @@ def generate_upload_props(channel, video_file, video_num):
 
     video_upload_props["privacy"] = channel.get("publication_options").get("privacy")
     video_upload_props["file"] = os.path.join(video_dir,video_file)
-
+    print("channel_type", channel_type)
+    video_upload_props["tags"] = get_tags(placeholders_filename, channel_type.get("video_tags_variants"))
 
     video_upload_props["default_language"] = channel.get("default_language")
     return  video_upload_props
@@ -354,7 +387,7 @@ if __name__ == '__main__':
                 video_num = video_num + 1
                 try:
                   video_id = initialize_upload(youtube, video_upload_props)
-                  thumbnail_file = get_thumnail_file(video_dir, video_file)
+                  thumbnail_file = get_thumbnail_file(video_dir, video_file)
                   if os.path.exists(thumbnail_file):
                     print("Setting thumbnail " + thumbnail_file + " for video id: " + video_id)
                     upload_thumbnail(youtube, video_id, thumbnail_file)

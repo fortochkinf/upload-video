@@ -67,7 +67,9 @@ channel_types:
       - "Красивое стихотворение <VIDEO_NAME> напоминает <PHRASE_FROM_FILE>. \n#hashtag #<PHRASE_FROM_FILE>"
       - "Шарль Бодлер. О <VIDEO_NAME>. \n#hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
       - "Маяковский, знаменитый стих: \n<VIDEO_NAME> #hashtag #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE> #<PHRASE_FROM_FILE>"
-
+    video_tags_variants:
+      - "tag1"
+      - "<PHRASE_FROM_FILE>"
   - id: "science"
     name: "science"
     video_name_variants:
